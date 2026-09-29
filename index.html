@@ -89,8 +89,8 @@ section{animation:sin .35s ease-out}
 @keyframes praisein{0%{transform:translateX(-50%) scale(.4) rotate(-8deg);opacity:0}20%{transform:translateX(-50%) scale(1.15) rotate(4deg);opacity:1}70%{transform:translateX(-50%) scale(1) rotate(0);opacity:1}100%{transform:translateX(-50%) translateY(-30px) scale(.9);opacity:0}}
 #grid.wpulse{animation:wpulse .4s ease-out}
 @keyframes wpulse{40%{transform:scale(1.025)}}
-#mwrap{position:fixed;left:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 90px);width:62px;height:62px;z-index:50;pointer-events:none;transition:left .35s,top .35s,bottom .35s,width .35s,height .35s,margin .35s}
-#mwrap.big{left:50%;bottom:auto;top:16%;width:104px;height:104px;margin-left:-52px}
+#mwrap{position:fixed;right:10px;top:calc(env(safe-area-inset-top,0px) + 8px);width:52px;height:52px;z-index:50;pointer-events:none;transition:left .35s,top .35s,bottom .35s,right .35s,width .35s,height .35s,margin .35s}
+#mwrap.big{left:50%;right:auto;bottom:auto;top:16%;width:104px;height:104px;margin-left:-52px}
 #mwrap.hide{opacity:0;transform:scale(.5)}
 #mascot{width:100%;height:100%;position:relative;animation:mfloat 2.3s ease-in-out infinite;transform-origin:center bottom}
 @keyframes mfloat{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-9px) rotate(4deg)}}

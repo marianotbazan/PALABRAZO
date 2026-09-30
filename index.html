@@ -165,11 +165,38 @@ input[type=range]{width:100%;accent-color:var(--yel);margin:6px 0}
   <div class="card lb"><div class="big" style="font-size:24px;margin-bottom:6px">Ranking semanal</div><div class="small" style="margin-bottom:6px">Demo: los rivales son de ejemplo. En la app real se conecta a un ranking online.</div><div id="lbl"></div></div>
   <div class="card"><div class="big" style="font-size:20px">Ligas</div><div id="ligas" class="small"></div></div>
  </section>
+ <section id="shop" class="hide">
+  <div class="card" style="text-align:center;background:linear-gradient(160deg,#ffd23f,#ff8a2b)">
+   <div class="big" style="font-size:22px;color:#2a1400">🚫 Quitar anuncios</div>
+   <div class="small" style="color:#2a1400;margin:6px 0 10px">Pago único. Jugás sin interrupciones para siempre (los anuncios para ganar monedas extra siguen disponibles si vos querés verlos).</div>
+   <button class="btn" id="buyNoAds" style="background:#2a1400;color:#fff">Quitar anuncios — USD 1.99</button>
+  </div>
+  <div class="card"><div class="big" style="font-size:20px">🪙 Paquetes de monedas</div>
+   <div class="small" style="margin-bottom:10px">Usalas para pistas extra o tiempo extra sin esperar un anuncio.</div>
+   <button class="btn alt" id="buyC1" style="margin-bottom:8px">200 🪙 — USD 0.99</button>
+   <button class="btn alt" id="buyC2" style="margin-bottom:8px">700 🪙 — USD 2.99</button>
+   <button class="btn alt" id="buyC3">1800 🪙 — USD 5.99</button>
+  </div>
+  <button class="btn alt" id="restore2">🛒 Restaurar compras</button>
+ </section>
 </div>
 <div id="modal" class="hide"><div class="mbox" id="mbox"></div></div>
-<nav class="tabs"><button class="a" data-t="home">Inicio</button><button data-t="rank">Ranking</button><button data-t="set">Ajustes</button></nav>
+<nav class="tabs"><button class="a" data-t="home">Inicio</button><button data-t="rank">Ranking</button><button data-t="shop">Tienda</button><button data-t="set">Ajustes</button></nav>
 
 <script>
+const IAP_TEST=true; // poné false cuando estén los productos reales creados en App Store Connect / RevenueCat
+const PRODUCTS={noAds:"palabrazo_remove_ads",c1:"palabrazo_coins_200",c2:"palabrazo_coins_700",c3:"palabrazo_coins_1800"};
+const IAP={ready:false,rc:null,
+ async init(){try{const P=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Purchases;if(!P||IAP_TEST)return;this.rc=P;await this.rc.configure({apiKey:"REVENUECAT_API_KEY_AQUI"});this.ready=true}catch(e){}},
+ async buy(id,onOk){
+  if(IAP_TEST){info("Compra de prueba","Esta es una simulación (todavía no está conectada a pagos reales de Apple). Cuando publiquemos, acá se abre el pago real de la App Store.",()=>{onOk();save()});return}
+  if(!this.ready){info("No disponible","Las compras no están disponibles ahora mismo. Probá más tarde.");return}
+  try{const offerings=await this.rc.getOfferings();const pkg=offerings?.current?.availablePackages?.find(p=>p.product.identifier===id);if(!pkg){info("No disponible","Este producto no está configurado todavía.");return}
+   const res=await this.rc.purchasePackage({aPackage:pkg});if(res&&!res.userCancelled){onOk();save()}}catch(e){}},
+ async restore(){
+  if(IAP_TEST){info("Restaurar compras","Todavía no hay compras reales conectadas (modo de prueba).");return}
+  if(!this.ready){info("No disponible","Intentá más tarde.");return}
+  try{const info_=await this.rc.restorePurchases();const hasNoAds=info_?.customerInfo?.entitlements?.active?.["no_ads"];if(hasNoAds){S.noAds=1;save();info("Listo","Se restauraron tus compras: anuncios quitados.")}else info("Sin compras","No encontramos compras previas con esta cuenta de Apple.")}catch(e){}}};
 const $=id=>document.getElementById(id);
 const LIGAS=[["Bronce","🥉",0,"#cd7f32"],["Plata","🥈",6000,"#c0c7d1"],["Oro","🥇",25000,"#ffd23f"],["Platino","💠",70000,"#5be6d5"],["Diamante","💎",180000,"#6ab8ff"],["Leyenda","👑",450000,"#ff4f8b"]];
 const CATS=[
@@ -198,10 +225,10 @@ const Ads={ready:false,A:null,
   try{const t=await A.trackingAuthorizationStatus();if(t&&t.status==="notDetermined")await A.requestTrackingAuthorization()}catch(e){}
   await A.initialize({initializeForTesting:AD_TEST});this.A=A;this.ready=true}catch(e){}},
  async rewarded(){let got=false,h=null;try{h=await this.A.addListener("onRewarded",()=>{got=true});await this.A.prepareRewardVideoAd({adId:IDS.rewarded,isTesting:AD_TEST});const x=await this.A.showRewardVideoAd();h&&h.remove&&h.remove();return got||!!x}catch(e){return false}},
- async interstitial(){if(!this.ready||S.level%2)return;try{await this.A.prepareInterstitial({adId:IDS.interstitial,isTesting:AD_TEST});await this.A.showInterstitial()}catch(e){}}};
+ async interstitial(){if(S.noAds||!this.ready||S.level%2)return;try{await this.A.prepareInterstitial({adId:IDS.interstitial,isTesting:AD_TEST});await this.A.showInterstitial()}catch(e){}}};
 let sh_=0,lastScore=0,lastCombo=1;
 let S={};try{S=JSON.parse(localStorage.getItem("pz2")||"{}")}catch(e){}
-S={pts:0,best:0,days:[],coins:0,theme:"fiesta",snd:1,level:1,stage:0,winsTotal:0,vol:.7,mus:1,mvol:.5,vibr:1,anim:1,auto:1,tut:0,...S};
+S={pts:0,best:0,days:[],coins:0,theme:"fiesta",snd:1,level:1,stage:0,winsTotal:0,noAds:0,vol:.7,mus:1,mvol:.5,vibr:1,anim:1,auto:1,tut:0,...S};
 const save=()=>{try{localStorage.setItem("pz2",JSON.stringify(S))}catch(e){}};
 let g=[],places={},words=[],secret="",done=[],fc={},path=[],score=0,time=180,combo=1,lastT=0,lastAct=0,hintsLeft=3,paused=false,playing=false,tm=null,cat="",level=1,won=false,curStage=1;
 const sh=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
@@ -209,7 +236,7 @@ let AC;function tone(f,d=.09,t="sine",v=.15){if(!S.snd||S.vol<=0)return;try{AC=A
 const vib=n=>{try{S.vibr&&navigator.vibrate&&navigator.vibrate(n)}catch(e){}};
 const rl=p=>{let i=0;LIGAS.forEach((l,j)=>{if(p>=l[2])i=j});return i};
 const streak=()=>{let n=0,d=new Date();while(S.days.includes(d.toDateString())){n++;d.setDate(d.getDate()-1)}return n};
-function show(id){["home","game","over","rank","set"].forEach(s=>$(s).classList.toggle("hide",s!==id));document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("a",b.dataset.t===id||(id!=="rank"&&id!=="set"&&b.dataset.t==="home")))}
+function show(id){["home","game","over","rank","set","shop"].forEach(s=>$(s).classList.toggle("hide",s!==id));document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("a",b.dataset.t===id||(id!=="rank"&&id!=="set"&&id!=="shop"&&b.dataset.t==="home")))}
 const TH=[["fiesta","Fiesta"],["ocean","Océano"],["sunset","Atardecer"],["forest","Bosque"]];
 function themeBtns(){$("themes").innerHTML="";TH.forEach(([k,n])=>{const b=document.createElement("button");b.className="btn alt";b.style.fontSize="14px";b.style.opacity=S.theme===k?1:.55;b.textContent=n;b.onclick=()=>{S.theme=k;document.body.dataset.pal=k;save();themeBtns()};$("themes").appendChild(b)});}
 function home(){const i=rl(S.pts),l=LIGAS[i],nx=LIGAS[i+1];$("medal").textContent=l[1];$("medal").style.setProperty("--c",l[3]);$("rname").textContent="Liga "+l[0];
@@ -291,7 +318,7 @@ function musicStop(){clearInterval(mTm);mTm=null}
 const TOG=[["snd","🔊 Efectos de sonido"],["mus","🎵 Música"],["vibr","📳 Vibración"],["anim","✨ Animaciones"],["auto","💡 Pista automática"]];
 function settingsView(){$("vol").value=S.vol*100;$("mvol").value=S.mvol*100;$("togs").innerHTML="";
  TOG.forEach(([k,n])=>{const b=document.createElement("button");b.className="btn alt";b.style.marginTop="8px";b.textContent=`${n}: ${S[k]?"Sí":"No"}`;b.onclick=()=>{S[k]=S[k]?0:1;save();applyAnim();if(k==="mus")S.mus?(playing&&musicStart()):musicStop();settingsView()};$("togs").appendChild(b)});themeBtns();show("set")}
-function info(t,txt){const b=modal();b.innerHTML=`<div class="big" style="font-size:26px">${t}</div><p class="small" style="line-height:1.5">${txt}</p>`;const x=document.createElement("button");x.className="btn";x.textContent="Cerrar";x.onclick=closeM;b.appendChild(x)}
+function info(t,txt,cb){const b=modal();b.innerHTML=`<div class="big" style="font-size:26px">${t}</div><p class="small" style="line-height:1.5">${txt}</p>`;const x=document.createElement("button");x.className="btn";x.textContent="Cerrar";x.onclick=()=>{closeM();cb&&cb()};b.appendChild(x)}
 function howTo(cb){const b=modal();b.innerHTML=`<div class="big" style="font-size:26px">Cómo jugar</div><p class="small" style="text-align:left;line-height:1.6">👆 Deslizá el dedo sobre las letras: hacia la derecha, hacia abajo, o en diagonal hacia abajo. Siempre se leen normal, nunca al revés.<br>📝 Encontrá todas las palabras de la lista.<br>🎁 Hay una palabra secreta extra en cada nivel.<br>⚡ Encadená palabras rápido para subir el combo.<br>💡 Tenés 3 pistas gratis por nivel; después usá monedas o un anuncio.<br>🏆 Tus puntos te suben de liga. Necesitás ganar ${WINS_PER_LEVEL} niveles para subir de nivel real.</p>`;const x=document.createElement("button");x.className="btn";x.textContent="¡Entendido!";x.onclick=()=>{closeM();cb&&cb()};b.appendChild(x)}
 function pauseGame(){if(!playing||paused)return;const b=modal();b.innerHTML=`<div class="big" style="font-size:28px">⏸ Pausa</div>`;
  const mk=(t,f,alt)=>{const x=document.createElement("button");x.className="btn"+(alt?" alt":"");x.textContent=t;x.onclick=f;b.appendChild(x)};
@@ -301,7 +328,12 @@ $("vol").oninput=e=>{S.vol=e.target.value/100;save()};$("vol").onchange=()=>tone
 $("mvol").oninput=e=>{S.mvol=e.target.value/100;save()};$("mvol").onchange=()=>mtone(523,.6);
 $("howto").onclick=()=>howTo();
 $("privacy").onclick=()=>info("Privacidad y anuncios","Tu progreso se guarda solo en tu dispositivo. La app muestra anuncios de Google AdMob, que pueden usar identificadores de publicidad. En algunas regiones te pediremos tu consentimiento. Política completa: "+PRIVACY_URL+". En iPhone podés cambiar el permiso de seguimiento desde Ajustes > Privacidad y seguridad > Seguimiento.");
-$("restore").onclick=()=>info("Restaurar compras","Todavía no hay compras dentro de la app. Cuando existan (por ejemplo quitar anuncios), podrás restaurarlas desde acá.");
+$("restore").onclick=()=>IAP.restore();
+$("restore2").onclick=()=>IAP.restore();
+$("buyNoAds").onclick=()=>{if(S.noAds){info("Ya lo tenés","Ya compraste quitar anuncios. ¡Disfrutá!");return}IAP.buy(PRODUCTS.noAds,()=>{S.noAds=1;save();info("¡Listo!","Los anuncios entre niveles ya no van a aparecer más. Gracias por apoyar Palabrazo 💛")})};
+$("buyC1").onclick=()=>IAP.buy(PRODUCTS.c1,()=>{S.coins+=200;save();home()});
+$("buyC2").onclick=()=>IAP.buy(PRODUCTS.c2,()=>{S.coins+=700;save();home()});
+$("buyC3").onclick=()=>IAP.buy(PRODUCTS.c3,()=>{S.coins+=1800;save();home()});
 $("reset").onclick=()=>{const b=modal();b.innerHTML=`<div class="big" style="font-size:26px">¿Borrar todo?</div><p class="small">Se pierden tu nivel, puntos, liga y monedas. No se puede deshacer.</p>`;
  const a=document.createElement("button");a.className="btn";a.style.background="var(--pink)";a.textContent="Sí, borrar";a.onclick=()=>{try{localStorage.removeItem("pz2")}catch(e){}location.reload()};
  const c=document.createElement("button");c.className="btn alt";c.textContent="Cancelar";c.onclick=closeM;b.append(a,c)};
@@ -315,11 +347,12 @@ function ask(title,cost,ok){const b=modal();b.innerHTML=`<div class="big" style=
 $("play").onclick=()=>{if(!S.tut){S.tut=1;save();howTo(start)}else start()};$("again").onclick=async()=>{await Ads.interstitial();start()};$("home2").onclick=home;$("hint").onclick=hintBtn;
 $("plus").onclick=()=>{if(!playing||paused)return;ask("+20 segundos",20,()=>{time+=20;hud();$("plus").disabled=true})};
 $("dbl").onclick=()=>ad(()=>{S.coins+=30;save();$("dbl").disabled=true;$("dbl").textContent="¡+30 🪙 recibidas!"});
-document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{if(playing)return;b.dataset.t==="rank"?rankView():b.dataset.t==="set"?settingsView():home()});
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{if(playing)return;b.dataset.t==="rank"?rankView():b.dataset.t==="set"?settingsView():b.dataset.t==="shop"?shopView():home()});
+function shopView(){const owned=!!S.noAds;$("buyNoAds").textContent=owned?"✅ Ya comprado — ¡gracias!":"Quitar anuncios — USD 1.99";$("buyNoAds").disabled=owned;show("shop")}
 function rankView(){const rv=[["Lucía_23",8210],["MateoPro",6650],["Ceci ✨",5120],["ElCrack",3480],["Nico99",2260],["Vale",1200]];
  const all=[...rv,["Vos",S.pts]].sort((a,b)=>b[1]-a[1]);$("lbl").innerHTML=all.map((r,i)=>`<div style="--i:${i}" class="${r[0]==="Vos"?"me":""}"><span>${i+1}. ${r[0]}</span><span>${r[1]}</span></div>`).join("");
  $("ligas").innerHTML=LIGAS.map(l=>`${l[1]} ${l[0]}: desde ${l[2]} pts`).join("<br>");show("rank");document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("a",x.dataset.t==="rank"))}
 "PALABRAZO".split("").forEach((c,i)=>{const s=document.createElement("span");s.textContent=c;s.style.color=`var(--t${i%6})`;s.style.setProperty("--r",((i%3)-1)*4+"deg");s.style.setProperty("--i",i);$("logo").appendChild(s)});
 {const bg=document.createElement("div");bg.className="bg";for(let i=0;i<16;i++){const x=document.createElement("span");x.textContent="ABCDEFGHIJLMNOPRSTUV"[i];x.style.left=(i*6.5)%100+"%";x.style.fontSize=(30+i%4*16)+"px";x.style.animationDuration=(14+i%5*4)+"s";x.style.animationDelay=(-i*2)+"s";bg.appendChild(x)}document.body.prepend(bg)}
-applyAnim();Ads.init();document.body.dataset.pal=S.theme;home();
+applyAnim();Ads.init();IAP.init();document.body.dataset.pal=S.theme;home();
 </script></body></html>
